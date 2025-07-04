@@ -1,163 +1,108 @@
 ﻿#include <iostream>
 #include <string>
-#include <vector>
 
 using namespace std;
 
-struct TrieNode {
-    TrieNode* children[26];
+struct Node {
     bool end;
+    Node* letters[26];
     int count;
-
-    TrieNode() : end(false), count(0) {
-        for (int i = 0; i < 26; ++i) {
-            children[i] = nullptr;
-        }
+    Node() {
+        end = false;
+        for (int i = 0; i < 26; ++i)
+            letters[i] = nullptr;
+        count = 0;
     }
 };
 
-class Trie {
+class TrieTree {
 private:
-    TrieNode* root;
+    Node* root;
 
-    void deleteSubtree(TrieNode* node) {
-        if (!node) return;
-
-        for (int i = 0; i < 26; ++i) {
-            deleteSubtree(node->children[i]);
+    Node* remove(Node* node, string word, int index, bool all) {
+        if (index != word.length()) {
+            if (node->letters[word[index] - 'a'])
+                node->letters[word[index] - 'a'] = remove(node->letters[word[index] - 'a'], word, index + 1, all);
+            else
+                return node;
         }
+        else {
+            if (!node->end) return node;
+            if (all)
+                node->count = 0;
+            else
+                node->count -= 1;
+            if (node->count == 0)
+                node->end = false;
+        }
+        if (node == root || node->end)
+            return node;
+        for (int i = 0; i < 26; ++i)
+            if (node->letters[i])
+                return node;
+        delete node;
+        return nullptr;
+    }
 
+    void deleteChildren(Node* node) {
+        if (node == nullptr) return;
+        for (int i = 0; i < 26; ++i)
+            deleteChildren(node->letters[i]);
         delete node;
     }
 
-    void printAllWords(TrieNode* node, string& currentWord, vector<string>& result) {
-        if (!node) return;
-
-        if (node->end) {
-            result.push_back(currentWord + " (" + to_string(node->count) + ")");
-        }
-
-        for (int i = 0; i < 26; ++i) {
-            if (node->children[i]) {
-                currentWord.push_back('a' + i);
-                printAllWords(node->children[i], currentWord, result);
-                currentWord.pop_back();
-            }
-        }
+    void print(Node* node, string word) {
+        if (node == nullptr) return;
+        if (node->end)
+            cout << word << " (" << node->count << ")\n";
+        for (int i = 0; i < 26; ++i)
+            print(node->letters[i], word + (char)('a' + i));
     }
-
-    bool removeHelper(TrieNode* node, const string& word, int index, bool removeAll) {
-        if (!node) return false;
-
-        if (index == word.length()) {
-            if (node->end) {
-                if (removeAll) {
-                    node->count = 0;
-                }
-                else {
-                    node->count--;
-                }
-
-                if (node->count <= 0) {
-                    node->end = false;
-                    node->count = 0;
-
-                    // Check if node has no children
-                    for (int i = 0; i < 26; ++i) {
-                        if (node->children[i]) {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        int charIndex = word[index] - 'a';
-        if (!node->children[charIndex]) {
-            return false;
-        }
-
-        bool shouldDeleteChild = removeHelper(node->children[charIndex], word, index + 1, removeAll);
-
-        if (shouldDeleteChild) {
-            delete node->children[charIndex];
-            node->children[charIndex] = nullptr;
-
-            // Check if current node can be deleted
-            if (!node->end) {
-                for (int i = 0; i < 26; ++i) {
-                    if (node->children[i]) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-        }
-
-        return false;
-    }
-
 public:
-    Trie() {
-        root = new TrieNode();
+    TrieTree() {
+        root = new Node;
     }
-
-    ~Trie() {
-        deleteSubtree(root);
-    }
-
-    void insert(const string& word) {
-        TrieNode* current = root;
-
+    void insert(string word) {
+        Node* node = root;
         for (char c : word) {
-            int index = c - 'a';
-            if (!current->children[index]) {
-                current->children[index] = new TrieNode();
-            }
-            current = current->children[index];
+            if (node->letters[c - 'a'] == nullptr)
+                node->letters[c - 'a'] = new Node;
+            node = node->letters[c - 'a'];
         }
-
-        current->end = true;
-        current->count++;
+        node->end = true;
+        ++node->count;
     }
 
-    bool search(const string& word) {
-        TrieNode* current = root;
-
+    bool find(string word) {
+        Node* node = root;
         for (char c : word) {
-            int index = c - 'a';
-            if (!current->children[index]) {
+            if (node->letters[c - 'a'] == nullptr)
                 return false;
-            }
-            current = current->children[index];
+            node = node->letters[c - 'a'];
         }
-
-        return current->end;
+        return node->end;
     }
 
-    void remove(const string& word, bool removeAll = false) {
-        removeHelper(root, word, 0, removeAll);
+    void remove(string word, bool all = false) {
+        remove(root, word, 0, all);
+    }
+
+    ~TrieTree() {
+        deleteChildren(root);
     }
 
     void print() {
-        vector<string> words;
-        string currentWord;
-        printAllWords(root, currentWord, words);
-        for (const string& word : words) {
-            //if (word.find("cat") != std::string::npos) {
-            //    cout << word << endl;
-            //}
-            cout << word << endl;
-        }
+        for (int i = 0; i < 26; ++i)
+            print(root->letters[i], string() + (char)('a' + i));
     }
 };
 
 int main() {
-    Trie trie;
-
-    trie.insert("acatable");
-    trie.insert("armorca");
-    trie.print();
+    TrieTree tt;
+    tt.insert("cat");
+    tt.insert("car");
+    tt.print();
 }
+            //if (word.find("cat") != std::string::npos) {
+            //    cout << word << endl;
+            //}     
